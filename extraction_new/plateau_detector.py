@@ -37,6 +37,15 @@ class PlateauCandidate:
 
     flatness_score: float
 
+    # Raw measured capacitance values making up this plateau, in
+    # dataset order. Added so downstream consumers (currently
+    # cox_extractor.calculate_cox) can compute robust statistics
+    # -- e.g. the median -- directly from the measured points
+    # rather than only from the mean/std summary above. Stored as
+    # a defensive copy so it stays immutable even though the
+    # source slice into `features.capacitance` is a view.
+    capacitance_values: np.ndarray
+
 @dataclass(frozen=True, slots=True)
 class DirectedPlateauResult:
     """
@@ -143,6 +152,7 @@ def detect_plateaus(
             standard_deviation=standard_deviation,
             coefficient_of_variation=coefficient_of_variation,
             flatness_score=flatness_score,
+            capacitance_values=capacitance.copy(),
         )
         )
 
@@ -460,6 +470,7 @@ def _build_plateau(
         standard_deviation=standard_deviation,
         coefficient_of_variation=coefficient_of_variation,
         flatness_score=flatness_score,
+        capacitance_values=capacitance.copy(),
     )
 
 def _calculate_confidence(

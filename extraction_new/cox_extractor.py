@@ -17,6 +17,8 @@ except ImportError:
         PlateauCandidate,
     )
 
+MINIMUM_PLATEAU_POINTS = 5
+
 
 @dataclass(frozen=True, slots=True)
 class CoxResult:
@@ -29,6 +31,40 @@ class CoxResult:
         Total oxide capacitance (F) extracted from the
         accumulation plateau. This is the measured device
         capacitance, not capacitance per unit area.
+
+        Reported as the MEDIAN plateau capacitance -- robust
+        against transition leakage, measurement noise, and
+        isolated outliers near the accumulation boundary.
+        Always derived from the measured C-V plateau; never
+        calculated from oxide thickness or a theoretical
+        dielectric constant.
+
+    confidence : float
+        Confidence score of the underlying plateau detection
+        (unchanged from DirectedPlateauResult.confidence).
+
+    plateau : PlateauCandidate
+        The full detected plateau, including its raw measured
+        capacitance values.
+
+    mean_capacitance : float
+        Arithmetic mean of the plateau capacitance. Kept for
+        diagnostics/comparison only -- no longer the reported
+        Cox value.
+
+    median_capacitance : float
+        Same value as `cox`, exposed under an explicit name so
+        callers don't have to know that `cox` is a median.
+
+    standard_deviation : float
+        Sample standard deviation (ddof=1) of the plateau
+        capacitance.
+
+    coefficient_of_variation : float
+        |standard_deviation / mean_capacitance| for the plateau.
+
+    plateau_point_count : int
+        Number of measured points making up the plateau.
     """
 
     cox: float
@@ -37,6 +73,16 @@ class CoxResult:
 
     plateau: PlateauCandidate
 
+    mean_capacitance: float
+
+    median_capacitance: float
+
+    standard_deviation: float
+
+    coefficient_of_variation: float
+
+    plateau_point_count: int
+
 
 def calculate_cox(
     result: DirectedPlateauResult,
@@ -44,26 +90,54 @@ def calculate_cox(
     """
     Extract oxide capacitance from the detected
     accumulation plateau.
+
+    Cox is reported as the median of the measured plateau
+    capacitance values (robust against transition-boundary
+    leakage, noise, and isolated outliers). The arithmetic mean,
+    standard deviation, coefficient of variation, and point
+    count are carried through as diagnostics -- the latter three
+    are reused directly from the plateau detector rather than
+    recomputed, since they were already calculated from the same
+    measured points.
+
+    Raises
+    ------
+    ValueError
+        If the plateau has fewer than MINIMUM_PLATEAU_POINTS
+        points, or if the resulting median capacitance is not
+        finite or not positive.
     """
 
     plateau = result.accumulation_plateau
 
-    cox = float(
-        plateau.mean_capacitance
-    )
-
-    if not np.isfinite(cox):
+    if plateau.point_count < MINIMUM_PLATEAU_POINTS:
         raise ValueError(
-            "Extracted oxide capacitance is not finite."
+            f"Accumulation plateau has only {plateau.point_count} "
+            f"point(s); at least {MINIMUM_PLATEAU_POINTS} are "
+            "required for a reliable Cox extraction."
         )
 
-    if cox <= 0.0:
+    median_capacitance = float(
+        np.median(plateau.capacitance_values)
+    )
+
+    if not np.isfinite(median_capacitance):
         raise ValueError(
-            "Extracted oxide capacitance must be positive."
+            "Extracted oxide capacitance (median) is not finite."
+        )
+
+    if median_capacitance <= 0.0:
+        raise ValueError(
+            "Extracted oxide capacitance (median) must be positive."
         )
 
     return CoxResult(
-        cox=cox,
+        cox=median_capacitance,
         confidence=result.confidence,
         plateau=plateau,
+        mean_capacitance=plateau.mean_capacitance,
+        median_capacitance=median_capacitance,
+        standard_deviation=plateau.standard_deviation,
+        coefficient_of_variation=plateau.coefficient_of_variation,
+        plateau_point_count=plateau.point_count,
     )
