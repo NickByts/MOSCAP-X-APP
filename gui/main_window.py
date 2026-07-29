@@ -13,6 +13,11 @@ from __future__ import annotations
 
 import importlib.util
 import traceback
+import functools
+import importlib.util
+import traceback
+from pathlib import Path
+from typing import Any, Optional
 from pathlib import Path
 from typing import Any, Optional
 
@@ -53,6 +58,7 @@ try:
         APP_NAME,
         CAPACITANCE_UNITS,
         DEFAULT_DEVICE_AREA_CM2,
+        ELEMENTARY_CHARGE,
         MIN_DEVICE_AREA_CM2,
         SAMPLE_DATA_RELATIVE_PATH,
         STANDARD_CAPACITANCE_COLUMN,
@@ -82,12 +88,20 @@ try:
         format_scientific,
     )
     from .extraction_new.measurement_context import build_measurement_context
+    from .Phase3.dit_plotter import plot_dit_vs_gate_voltage
+    from .Phase3.analysis_window import (
+        apply_analysis_window,
+        full_range_window,
+        snap_to_measured_frequency,
+    )
+
 except ImportError:
     from constants import (
         APP_DESCRIPTION,
         APP_NAME,
         CAPACITANCE_UNITS,
         DEFAULT_DEVICE_AREA_CM2,
+        ELEMENTARY_CHARGE,
         MIN_DEVICE_AREA_CM2,
         SAMPLE_DATA_RELATIVE_PATH,
         STANDARD_CAPACITANCE_COLUMN,
@@ -117,6 +131,12 @@ except ImportError:
         format_scientific,
     )
     from extraction_new.measurement_context import build_measurement_context
+    from Phase3.dit_plotter import plot_dit_vs_gate_voltage
+    from Phase3.analysis_window import (
+        apply_analysis_window,
+        full_range_window,
+        snap_to_measured_frequency,
+    )
 
 try:
     from .extraction_new.phase1_pipeline import run_phase1_pipeline
@@ -247,6 +267,11 @@ class MainWindow(QMainWindow):
             plot_dit_vs_gate_voltage=plot_dit_vs_gate_voltage,
             figure_to_png_bytes=figure_to_png_bytes,
             dataframe_to_csv_bytes=dataframe_to_csv_bytes,
+            apply_analysis_window=functools.partial(
+                apply_analysis_window, elementary_charge=ELEMENTARY_CHARGE
+            ),
+            full_range_window=full_range_window,
+            snap_to_measured_frequency=snap_to_measured_frequency,
         )
         self.phase3_tab.workbookUploaded.connect(self._on_phase3_workbook_uploaded)
         self.tabs.addTab(self._make_scrollable(self.phase3_tab), "Phase 3")
@@ -627,7 +652,7 @@ class MainWindow(QMainWindow):
 
     def _on_phase3_finished(self, phase3_results: Any) -> None:
         self.statusBar().showMessage("Ready", 3000)
-        self.phase3_tab.set_results(phase3_results)
+        self.phase3_tab.set_results(phase3_results, area_cm2=self._phase2_inputs.area_cm2)
 
     def _on_phase3_failed(self, exc: Exception, formatted_traceback: str) -> None:
         self.statusBar().showMessage("Error", 5000)

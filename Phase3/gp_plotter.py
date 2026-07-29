@@ -9,6 +9,18 @@ Contains:
 
     • plot_all_gp_over_omega()
         -> Plot all gate-voltage sweeps.
+
+Both functions accept an independent `x_scale` (Frequency axis) and
+`y_scale` (Gp/omega axis). Setting either is a pure display-transform
+operation -- axis.set_xscale()/set_yscale() -- applied after the same
+plotted data and the same peak marker used for every other scale
+combination. Neither call touches sweep.frequency, sweep.gp_over_omega,
+or any PeakResult/DitResult value.
+
+A logarithmic Gp/omega axis with plotted values that include
+zero/negative points does not raise: matplotlib's log transform
+simply omits non-positive points from the rendered line, which is
+the desired graceful degradation for that case.
 """
 
 from __future__ import annotations
@@ -26,6 +38,7 @@ def plot_gp_over_omega(
     sweep: VoltageSweep,
     peak: PeakResult | None = None,
     x_scale: str = "log",
+    y_scale: str = "linear",
 ):
     """
     Plot Gp/ω versus Frequency for one gate voltage.
@@ -72,6 +85,8 @@ def plot_gp_over_omega(
 
     axis.set_ylabel("Gp/ω")
 
+    axis.set_yscale(y_scale)
+
     axis.grid(True)
 
     axis.legend()
@@ -89,6 +104,7 @@ def plot_all_gp_over_omega(
     sweeps: list[VoltageSweep],
     peaks: list[PeakResult],
     x_scale: str = "log",
+    y_scale: str = "linear",
 ):
     """
     Plot Gp/ω versus Frequency for every gate voltage.
@@ -142,6 +158,8 @@ def plot_all_gp_over_omega(
     axis.set_xscale(x_scale)
 
     axis.set_ylabel("Gp/ω")
+
+    axis.set_yscale(y_scale)
 
     axis.grid(True)
 
