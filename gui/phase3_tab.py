@@ -256,6 +256,9 @@ class Phase3Tab(QWidget):
         self._download_button = QPushButton("Download Dit Table (CSV)")
         self._download_button.clicked.connect(self._on_download_clicked)
         self._download_button.setEnabled(False)
+        self._download_gp_button = QPushButton("Download Gp/ω Data (CSV)")
+        self._download_gp_button.clicked.connect(self._on_download_gp_clicked)
+        self._download_gp_button.setEnabled(False)
 
         # -- Dit vs gate voltage plot -----------------------------
 
@@ -287,6 +290,7 @@ class Phase3Tab(QWidget):
         layout.addWidget(QLabel("Dit Results"))
         layout.addWidget(self._dit_table_view)
         layout.addWidget(self._download_button)
+        layout.addWidget(self._download_gp_button)
         layout.addWidget(QLabel("Dit vs Gate Voltage"))
         layout.addWidget(self._dit_plot_widget)
 
@@ -543,6 +547,7 @@ class Phase3Tab(QWidget):
             self._summary_status_label.setText(f"Phase 3 summary unavailable: {exc}")
             self._download_button.setEnabled(False)
             self._dit_plot_widget.set_figure(None)
+            self._download_gp_button.setEnabled(False)
             return
 
         self._summary_status_label.setText("")
@@ -566,6 +571,7 @@ class Phase3Tab(QWidget):
         self._dit_table = table
         self._dit_table_model.set_dataframe(table)
         self._download_button.setEnabled(True)
+        self._download_gp_button.setEnabled(True)
 
         dit_figure = self._plot_dit_vs_gate_voltage(self._phase3_results)
         self._dit_plot_widget.set_figure(dit_figure)
@@ -590,10 +596,58 @@ class Phase3Tab(QWidget):
         except Exception as exc:
             QMessageBox.warning(self, "Save Failed", str(exc))
 
+
+    def _on_download_gp_clicked(self) -> None:
+        if self._phase3_results is None:
+            return
+
+        import pandas as pd
+
+        rows = []
+
+        for sweep in self._phase3_results.voltage_sweeps:
+            for freq, omega, g, c, gp in zip(
+                sweep.frequency,
+                sweep.omega,
+                sweep.conductance,
+                sweep.capacitance,
+                sweep.gp_over_omega,
+            ):
+                rows.append(
+                    {
+                        "Gate Voltage (V)": sweep.gate_voltage,
+                        "Frequency (Hz)": freq,
+                        "Omega (rad/s)": omega,
+                        "Conductance (S)": g,
+                        "Capacitance (F)": c,
+                        "Gp/Omega": gp,
+                    }
+                )
+
+        dataframe = pd.DataFrame(rows)
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Download Gp/Omega Data",
+            "phase3_gp_omega.csv",
+            "CSV Files (*.csv)",
+        )
+
+        if not file_path:
+            return
+
+        try:
+            data = self._dataframe_to_csv_bytes(dataframe)
+            Path(file_path).write_bytes(data)
+        except Exception as exc:
+            QMessageBox.warning(self, "Save Failed", str(exc))
+
     # ------------------------------------------------------------
     # Measurement Analysis Window
     # ------------------------------------------------------------
 
+
+    
     def _update_analysis_window_inputs(self, window: tuple[float, float]) -> None:
         minimum_frequency, maximum_frequency = window
         self._min_freq_input.blockSignals(True)

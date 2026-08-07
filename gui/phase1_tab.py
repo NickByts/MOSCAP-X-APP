@@ -96,20 +96,24 @@ class Phase1Tab(QWidget):
 
         self._status_label.setText("")
 
-        self._cox_card.set_value(format_phase_1b_value(summary.cox.cox))
+        self._cox_card.set_value(f"{format_phase_1b_value(summary.cox.cox)} F")
         self._v0_card.set_value(f"{summary.vintercept.vintercept:.4f} V")
         self._r2_card.set_value(f"{summary.fit.r2:.5f}")
 
         self._doping_card.set_label(summary.doping.substrate_type)
         self._doping_card.set_value(
-            format_phase_1b_value(summary.doping.doping_value)
+            f"{format_phase_1b_value(summary.doping.doping_value)} cm⁻³"
         )
 
         self._debye_card.set_value(
-            format_phase_1b_value(summary.debye.debye_length)
+            f"{format_phase_1b_value(summary.debye.debye_length)} cm"
         )
-        self._csfb_card.set_value(format_phase_1b_value(summary.csfb.csfb))
-        self._cfb_card.set_value(format_phase_1b_value(summary.cfb.cfb))
+        self._csfb_card.set_value(
+            f"{format_phase_1b_value(summary.csfb.csfb)} F"
+        )
+        self._cfb_card.set_value(
+            f"{format_phase_1b_value(summary.cfb.cfb)} F"
+        )
 
         self._vfb_card.set_value(f"{summary.vfb.vfb:.4f} V")
 

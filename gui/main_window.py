@@ -56,7 +56,6 @@ try:
     from .constants import (
         APP_DESCRIPTION,
         APP_NAME,
-        CAPACITANCE_UNITS,
         DEFAULT_DEVICE_AREA_CM2,
         ELEMENTARY_CHARGE,
         MIN_DEVICE_AREA_CM2,
@@ -99,7 +98,6 @@ except ImportError:
     from constants import (
         APP_DESCRIPTION,
         APP_NAME,
-        CAPACITANCE_UNITS,
         DEFAULT_DEVICE_AREA_CM2,
         ELEMENTARY_CHARGE,
         MIN_DEVICE_AREA_CM2,
@@ -138,6 +136,12 @@ except ImportError:
         snap_to_measured_frequency,
     )
 
+
+try:
+    from measurement_statistics import calculate_statistics
+except ImportError:
+    from .measurement_statistics import calculate_statistics
+
 try:
     from .extraction_new.phase1_pipeline import run_phase1_pipeline
 except ImportError:
@@ -170,14 +174,14 @@ class MainWindow(QMainWindow):
         # used to live inside app.py's main().
         self._measurement_context = None
         self._device_area_cm2: float = DEFAULT_DEVICE_AREA_CM2
-        self._capacitance_unit: str = "F"
         self._cleaned_data: Optional[pd.DataFrame] = None
         self._phase1b_summary = None
         self._phase2_summary = None
         self._phase2_inputs = None
 
         self._build_ui()
-        self._run_main_pipeline(uploaded_file_path=None)
+
+        self.statusBar().showMessage("Ready")
 
     # ------------------------------------------------------------
     # UI construction
@@ -185,7 +189,6 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self) -> None:
         self.sidebar = Sidebar(
-            capacitance_units=list(CAPACITANCE_UNITS),
             default_device_area_cm2=DEFAULT_DEVICE_AREA_CM2,
             min_device_area_cm2=MIN_DEVICE_AREA_CM2,
             supported_upload_types=list(SUPPORTED_UPLOAD_TYPES),
@@ -254,10 +257,10 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self._make_scrollable(plots_tab), "Plots")
 
         self.phase1_tab = Phase1Tab(figure_to_png_bytes)
-        self.tabs.addTab(self._make_scrollable(self.phase1_tab), "Phase 1")
+        self.tabs.addTab(self._make_scrollable(self.phase1_tab), "C–V Analysis")
 
         self.phase2_tab = Phase2Tab()
-        self.tabs.addTab(self._make_scrollable(self.phase2_tab), "Phase 2")
+        self.tabs.addTab(self._make_scrollable(self.phase2_tab), "Parameter Extraction")
 
         self.phase3_tab = Phase3Tab(
             plot_all_gp_over_omega=plot_all_gp_over_omega,
@@ -274,7 +277,7 @@ class MainWindow(QMainWindow):
             snap_to_measured_frequency=snap_to_measured_frequency,
         )
         self.phase3_tab.workbookUploaded.connect(self._on_phase3_workbook_uploaded)
-        self.tabs.addTab(self._make_scrollable(self.phase3_tab), "Phase 3")
+        self.tabs.addTab(self._make_scrollable(self.phase3_tab), "Interface Trap Analysis")
 
         splitter = QSplitter()
         splitter.addWidget(self.sidebar)
@@ -336,9 +339,12 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------
 
     def _on_settings_changed(self) -> None:
-        self._run_main_pipeline(
-            uploaded_file_path=self.sidebar.uploaded_file_path()
-        )
+        uploaded_file = self.sidebar.uploaded_file_path()
+
+        if uploaded_file is None:
+            return
+
+        self._run_main_pipeline(uploaded_file_path=uploaded_file)
 
     def _on_dataset_uploaded(self, file_path: str) -> None:
         self._run_main_pipeline(uploaded_file_path=file_path)
@@ -358,7 +364,7 @@ class MainWindow(QMainWindow):
             temperature_k=self.sidebar.temperature_k(),
         )
         device_area_cm2 = self.sidebar.device_area_cm2()
-        capacitance_unit = self.sidebar.capacitance_unit()
+        capacitance_unit = "F"
 
         worker = Worker(
             self._compute_main_pipeline,
@@ -384,15 +390,11 @@ class MainWindow(QMainWindow):
         order, same parameters.
         """
 
-        if uploaded_file_path is not None:
-            raw_data, source_name = load_data(uploaded_file_path), Path(
-                uploaded_file_path
-            ).name
-        else:
-            sample_path = (
-                Path(__file__).resolve().parent.parent / SAMPLE_DATA_RELATIVE_PATH
-            )
-            raw_data, source_name = load_csv(sample_path), sample_path.name
+        if uploaded_file_path is None:
+            raise ValueError("No dataset selected.")
+
+        raw_data = load_data(uploaded_file_path)
+        source_name = Path(uploaded_file_path).name
 
         validation_warnings = validate_data(raw_data)
 
@@ -515,25 +517,9 @@ class MainWindow(QMainWindow):
         }
 
     def _calculate_statistics(self, dataframe: pd.DataFrame) -> dict:
-        calculate_statistics = self._load_statistics_function()
         return calculate_statistics(dataframe)
 
-    @staticmethod
-    def _load_statistics_function():
-        try:
-            from .statistics import calculate_statistics
-
-            return calculate_statistics
-        except ImportError:
-            module_path = Path(__file__).resolve().parent.parent / "statistics.py"
-            spec = importlib.util.spec_from_file_location(
-                "moscap_x_local_statistics", module_path
-            )
-            if spec is None or spec.loader is None:
-                raise ImportError("Unable to load local statistics module.")
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            return module.calculate_statistics
+    
 
     def _on_main_pipeline_finished(self, result: dict) -> None:
         self.statusBar().showMessage("Ready", 3000)

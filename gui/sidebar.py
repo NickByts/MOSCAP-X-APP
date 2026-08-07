@@ -50,7 +50,6 @@ class Sidebar(QWidget):
 
     def __init__(
         self,
-        capacitance_units: List[str],
         default_device_area_cm2: float,
         min_device_area_cm2: float,
         supported_upload_types: List[str],
@@ -87,12 +86,9 @@ class Sidebar(QWidget):
         self.device_area_spin.setValue(default_device_area_cm2)
         device_layout.addRow("Device Area (cm\u00b2)", self.device_area_spin)
 
-        self.capacitance_unit_combo = QComboBox()
-        self.capacitance_unit_combo.addItems(list(capacitance_units))
-        device_layout.addRow("Capacitance Unit", self.capacitance_unit_combo)
 
         self.upload_button = QPushButton("Upload Dataset...")
-        self.upload_label = QLabel("Using bundled sample data")
+        self.upload_label = QLabel("No dataset loaded")
         self.upload_label.setWordWrap(True)
         device_layout.addRow(self.upload_button)
         device_layout.addRow(self.upload_label)
@@ -113,9 +109,6 @@ class Sidebar(QWidget):
         )
         self.device_area_spin.valueChanged.connect(
             lambda _value: self.settingsChanged.emit()
-        )
-        self.capacitance_unit_combo.currentIndexChanged.connect(
-            lambda _index: self.settingsChanged.emit()
         )
         self.upload_button.clicked.connect(self._on_upload_clicked)
 
@@ -149,9 +142,6 @@ class Sidebar(QWidget):
 
     def device_area_cm2(self) -> float:
         return float(self.device_area_spin.value())
-
-    def capacitance_unit(self) -> str:
-        return self.capacitance_unit_combo.currentText()
 
     def uploaded_file_path(self) -> Optional[str]:
         return self._uploaded_file_path

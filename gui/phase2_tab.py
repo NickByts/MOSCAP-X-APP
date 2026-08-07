@@ -20,17 +20,17 @@ from .metric_card import MetricCard
 _METRIC_SPECS = (
     ("Diffusion Potential", "vd_v", "V"),
     ("Debye Length", "ld_cm", "cm"),
-    ("Fermi Potential", "phi_f_v", "\u03c6F"),
+    ("Electrostatic potentail (Vp)", "phi_f_v", "V"),
     ("Depletion Width", "wd_cm", "cm"),
     ("Junction Electric Field", "em_v_cm", "V/cm"),
-    ("Image Force Barrier Lowering", "delta_phi_b_v", "V"),
-    ("Fermi Level", "ef_v", "V"),
-    ("Barrier Height", "phi_b_v", "V"),
+    ("Image Force Barrier Lowering", "delta_phi_b_v", "eV"),
+    ("Fermi Level", "ef_v", "eV"),
+    ("Barrier Height", "phi_b_v", "eV"),
     ("Semiconductor Capacitance", "cs_f", "F"),
     ("Flat-Band Capacitance", "cfb_f", "F"),
-    ("Metal-Semiconductor Work Function", "phi_ms_v", "V"),
-    ("Effective Oxide Charge", "qeff_c_cm2", "C/cm\u00b2"),
-    ("Effective Charge Density", "neff_cm2", "cm\u207b\u00b2"),
+    ("Metal-Semiconductor Work Function", "phi_ms_v", "eV"),
+    ("Effective Oxide Charge", "qeff_c_cm2", "C/cm²"),
+    ("Effective Charge Density", "neff_cm2", "cm⁻²"),
 )
 
 _ROW_SIZES = (3, 4, 3, 4)
