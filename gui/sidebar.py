@@ -13,12 +13,14 @@ call (kept next to the rest of the pipeline orchestration).
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import List, Optional
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
+    QHBoxLayout,
     QFileDialog,
     QFormLayout,
     QGroupBox,
@@ -28,6 +30,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+try:
+    from .data_loader import get_excel_sheet_names
+    from .constants import SUPPORTED_EXCEL_EXTENSIONS
+except ImportError:
+    from data_loader import get_excel_sheet_names
+    from constants import SUPPORTED_EXCEL_EXTENSIONS
 
 class Sidebar(QWidget):
     """
@@ -46,7 +54,10 @@ class Sidebar(QWidget):
     """
 
     settingsChanged = Signal()
+
     datasetUploaded = Signal(str)
+
+    datasetReady = Signal(str, str)
 
     def __init__(
         self,
@@ -89,9 +100,21 @@ class Sidebar(QWidget):
 
         self.upload_button = QPushButton("Upload Dataset...")
         self.upload_label = QLabel("No dataset loaded")
+        self.sheet_label = QLabel("Dataset")
+        self.sheet_combo = QComboBox()
+
+        self.analyze_button = QPushButton(
+            "Analyze Selected Sheet"
+        )
+        self.sheet_label.hide()
+        self.sheet_combo.hide()
+        self.analyze_button.hide()
         self.upload_label.setWordWrap(True)
         device_layout.addRow(self.upload_button)
         device_layout.addRow(self.upload_label)
+        device_layout.addRow(self.sheet_label)
+        device_layout.addRow(self.sheet_combo)
+        device_layout.addRow(self.analyze_button)
 
         layout = QVBoxLayout(self)
         layout.addWidget(measurement_group)
@@ -112,6 +135,10 @@ class Sidebar(QWidget):
         )
         self.upload_button.clicked.connect(self._on_upload_clicked)
 
+        self.analyze_button.clicked.connect(
+            self._on_analyze_clicked
+        )
+
     def _on_upload_clicked(self) -> None:
         extensions = " ".join(
             f"*.{ext}" for ext in self._supported_upload_types
@@ -128,7 +155,39 @@ class Sidebar(QWidget):
             return
 
         self._uploaded_file_path = file_path
-        self.upload_label.setText(f"Using: {file_path}")
+        self.upload_label.setText(
+            f"Using: {Path(file_path).name}"
+        )
+
+        suffix = Path(file_path).suffix.lower()
+
+        if suffix in SUPPORTED_EXCEL_EXTENSIONS:
+
+            try:
+                sheets = get_excel_sheet_names(file_path)
+            except ValueError as exc:
+                from PySide6.QtWidgets import QMessageBox
+
+                QMessageBox.warning(
+                    self,
+                    "Workbook Error",
+                    str(exc),
+                )
+                return
+
+            self.sheet_combo.clear()
+            self.sheet_combo.addItems(sheets)
+
+            self.sheet_label.show()
+            self.sheet_combo.show()
+            self.analyze_button.show()
+
+            return
+
+        self.sheet_label.hide()
+        self.sheet_combo.hide()
+        self.analyze_button.hide()
+
         self.datasetUploaded.emit(file_path)
 
     def material(self) -> str:
@@ -145,3 +204,18 @@ class Sidebar(QWidget):
 
     def uploaded_file_path(self) -> Optional[str]:
         return self._uploaded_file_path
+
+    def _on_analyze_clicked(self) -> None:
+
+        if self._uploaded_file_path is None:
+            return
+
+        sheet = self.sheet_combo.currentText()
+
+        if not sheet:
+            return
+
+        self.datasetReady.emit(
+            self._uploaded_file_path,
+            sheet,
+        )

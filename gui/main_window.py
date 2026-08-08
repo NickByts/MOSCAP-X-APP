@@ -172,6 +172,7 @@ class MainWindow(QMainWindow):
 
         # Cached pipeline state, mirroring the local variables that
         # used to live inside app.py's main().
+        self._selected_sheet_name: str | None = None
         self._measurement_context = None
         self._device_area_cm2: float = DEFAULT_DEVICE_AREA_CM2
         self._cleaned_data: Optional[pd.DataFrame] = None
@@ -194,7 +195,14 @@ class MainWindow(QMainWindow):
             supported_upload_types=list(SUPPORTED_UPLOAD_TYPES),
         )
         self.sidebar.settingsChanged.connect(self._on_settings_changed)
-        self.sidebar.datasetUploaded.connect(self._on_dataset_uploaded)
+
+        self.sidebar.datasetUploaded.connect(
+            self._on_dataset_uploaded
+        )
+
+        self.sidebar.datasetReady.connect(
+            self._on_dataset_ready
+        )
 
         self.tabs = QTabWidget()
 
@@ -344,10 +352,37 @@ class MainWindow(QMainWindow):
         if uploaded_file is None:
             return
 
-        self._run_main_pipeline(uploaded_file_path=uploaded_file)
+        self._run_main_pipeline(
+            uploaded_file_path=uploaded_file,
+            sheet_name=self._selected_sheet_name,
+        )
 
-    def _on_dataset_uploaded(self, file_path: str) -> None:
-        self._run_main_pipeline(uploaded_file_path=file_path)
+    def _on_dataset_uploaded(
+        self,
+        file_path: str,
+    ) -> None:
+        """
+        CSV upload path.
+
+        CSV files start analysis immediately.
+        """
+
+        self._run_main_pipeline(
+            uploaded_file_path=file_path,
+        )
+
+    def _on_dataset_ready(
+        self,
+        file_path: str,
+        sheet_name: str,
+    ) -> None:
+
+        self._selected_sheet_name = sheet_name
+
+        self._run_main_pipeline(
+            uploaded_file_path=file_path,
+            sheet_name=sheet_name,
+        )
 
     # ------------------------------------------------------------
     # Main pipeline (sections 1-9 of the original app.py), run in
@@ -355,7 +390,11 @@ class MainWindow(QMainWindow):
     # and Phase 2 calculation.
     # ------------------------------------------------------------
 
-    def _run_main_pipeline(self, uploaded_file_path: Optional[str]) -> None:
+    def _run_main_pipeline(
+        self,
+        uploaded_file_path: Optional[str],
+        sheet_name: str | None = None,
+    ) -> None:
         self.statusBar().showMessage("Running analysis...")
 
         context = build_measurement_context(
@@ -369,6 +408,7 @@ class MainWindow(QMainWindow):
         worker = Worker(
             self._compute_main_pipeline,
             uploaded_file_path,
+            sheet_name,
             context,
             device_area_cm2,
             capacitance_unit,
@@ -380,6 +420,7 @@ class MainWindow(QMainWindow):
     def _compute_main_pipeline(
         self,
         uploaded_file_path: Optional[str],
+        sheet_name: str | None,
         measurement_context,
         device_area_cm2: float,
         capacitance_unit: str,
@@ -393,8 +434,14 @@ class MainWindow(QMainWindow):
         if uploaded_file_path is None:
             raise ValueError("No dataset selected.")
 
-        raw_data = load_data(uploaded_file_path)
-        source_name = Path(uploaded_file_path).name
+        raw_data = load_data(
+            uploaded_file_path,
+            sheet_name=sheet_name,
+        )
+        if sheet_name:
+            source_name = f"{Path(uploaded_file_path).name} — {sheet_name}"
+        else:
+            source_name = Path(uploaded_file_path).name
 
         validation_warnings = validate_data(raw_data)
 

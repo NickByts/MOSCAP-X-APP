@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, IO, Iterable
 
+from openpyxl import load_workbook
+
 import pandas as pd
 
 try:
@@ -59,7 +61,58 @@ def load_excel(filepath: ReadableFile) -> pd.DataFrame:
 
     return _standardize_columns(dataframe)
 
-def load_data(filepath: str | Path) -> pd.DataFrame:
+def get_excel_sheet_names(filepath: ReadableFile) -> list[str]:
+    """
+    Return all worksheet names contained in an Excel workbook.
+
+    This reads only the workbook metadata and does not load
+    any measurement data.
+    """
+    try:
+        workbook = load_workbook(
+            filename=filepath,
+            read_only=True,
+            data_only=True,
+        )
+        return workbook.sheetnames
+
+    except Exception as exc:
+        raise ValueError(
+            f"Unable to read workbook sheets: {exc}"
+        ) from exc
+
+def load_excel_sheet(
+    filepath: ReadableFile,
+    sheet_name: str,
+) -> pd.DataFrame:
+    """
+    Load a specific worksheet from an Excel workbook and
+    standardize the column names.
+    """
+
+    try:
+        dataframe = pd.read_excel(
+            filepath,
+            sheet_name=sheet_name,
+            engine="openpyxl",
+        )
+
+    except ValueError as exc:
+        raise ValueError(
+            f"Worksheet '{sheet_name}' could not be loaded."
+        ) from exc
+
+    except Exception as exc:
+        raise ValueError(
+            f"Unable to read worksheet '{sheet_name}': {exc}"
+        ) from exc
+
+    return _standardize_columns(dataframe)
+
+def load_data(
+    filepath: str | Path,
+    sheet_name: str | None = None,
+) -> pd.DataFrame:
     """
     Load a CSV or Excel file from a filesystem path.
     Used by the PySide6 desktop application.
@@ -72,7 +125,14 @@ def load_data(filepath: str | Path) -> pd.DataFrame:
         return load_csv(filepath)
 
     if suffix in SUPPORTED_EXCEL_EXTENSIONS:
-        return load_excel(filepath)
+
+        if sheet_name is None:
+            return load_excel(filepath)
+
+        return load_excel_sheet(
+            filepath,
+            sheet_name,
+        )
 
     supported = ", ".join(
         sorted(SUPPORTED_CSV_EXTENSIONS + SUPPORTED_EXCEL_EXTENSIONS)
