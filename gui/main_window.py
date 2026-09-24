@@ -403,6 +403,11 @@ class MainWindow(QMainWindow):
             temperature_k=self.sidebar.temperature_k(),
         )
         device_area_cm2 = self.sidebar.device_area_cm2()
+        nc_cm3 = self.sidebar.nc_cm3()
+        nv_cm3 = self.sidebar.nv_cm3()
+        metal_work_function_ev = (
+            self.sidebar.metal_work_function_ev()
+        )
         capacitance_unit = "F"
 
         worker = Worker(
@@ -411,6 +416,9 @@ class MainWindow(QMainWindow):
             sheet_name,
             context,
             device_area_cm2,
+            nc_cm3,
+            nv_cm3,
+            metal_work_function_ev,
             capacitance_unit,
         )
         worker.signals.finished.connect(self._on_main_pipeline_finished)
@@ -423,6 +431,9 @@ class MainWindow(QMainWindow):
         sheet_name: str | None,
         measurement_context,
         device_area_cm2: float,
+        nc_cm3: float,
+        nv_cm3: float,
+        metal_work_function_ev: float,
         capacitance_unit: str,
     ) -> dict:
         """
@@ -504,6 +515,7 @@ class MainWindow(QMainWindow):
         phase2_summary = None
         phase2_inputs = None
         phase2_error: Optional[str] = None
+
         if phase1b_summary is not None:
             try:
                 phase2_inputs = Phase2Inputs(
@@ -517,29 +529,34 @@ class MainWindow(QMainWindow):
                     cs_f=phase1b_summary.csfb.csfb,
                     cfb_f=phase1b_summary.cfb.cfb,
                     vfb_v=phase1b_summary.vfb.vfb,
-                    phi_m_ev=4.16,
+                    phi_m_ev=metal_work_function_ev,
+                    nc_cm3=nc_cm3,
+                    nv_cm3=nv_cm3,
                 )
+
                 phase2_materials = Phase2MaterialProperties(
                     intrinsic_concentration_cm3=(
-                        phase1b_summary.context.intrinsic_carrier_concentration_cm3
+                        phase1b_summary.context
+                        .intrinsic_carrier_concentration_cm3
                     ),
-                    bandgap_ev=phase1b_summary.context.bandgap_ev,
+                    bandgap_ev=(
+                        phase1b_summary.context.bandgap_ev
+                    ),
                     electron_affinity_ev=(
-                        phase1b_summary.context.electron_affinity_ev
+                        phase1b_summary.context
+                        .electron_affinity_ev
                     ),
                     relative_permittivity=(
-                        phase1b_summary.context.relative_permittivity
-                    ),
-                    conduction_band_density_cm3=(
-                        phase1b_summary.context.conduction_band_density_cm3
-                    ),
-                    valence_band_density_cm3=(
-                        phase1b_summary.context.valence_band_density_cm3
+                        phase1b_summary.context
+                        .relative_permittivity
                     ),
                 )
+
                 phase2_summary = calculate_phase2_summary(
-                    phase2_inputs, phase2_materials
+                    phase2_inputs,
+                    phase2_materials,
                 )
+
             except (ArithmeticError, ValueError) as exc:
                 phase2_error = str(exc)
 

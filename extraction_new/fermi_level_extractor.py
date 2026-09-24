@@ -1,8 +1,19 @@
-"""Fermi-level extraction for MOSCAP-X Phase 2."""
+"""Vp extraction for MOSCAP-X Phase 2.
+
+Calculates Vp using the effective density of states and
+the semiconductor doping concentration.
+
+For P-Type:
+    Vp = (kT/q) * ln(Nv / Na)
+
+For N-Type:
+    Vp = (kT/q) * ln(Nc / Nd)
+"""
 
 from __future__ import annotations
 
 import numpy as np
+
 try:
     from .phase2_constants import (
         BOLTZMANN_CONSTANT_J_PER_K,
@@ -10,10 +21,9 @@ try:
     )
     from .phase2_validation import (
         validate_finite_positive,
-        validate_unit,
         validate_substrate_type,
+        validate_unit,
     )
-
 except ImportError:
     from phase2_constants import (
         BOLTZMANN_CONSTANT_J_PER_K,
@@ -21,11 +31,12 @@ except ImportError:
     )
     from phase2_validation import (
         validate_finite_positive,
-        validate_unit,
         validate_substrate_type,
+        validate_unit,
     )
 
-def calculate_fermi_level(
+
+def calculate_vp(
     doping_cm3: float,
     temperature_k: float,
     substrate_type: str,
@@ -36,12 +47,60 @@ def calculate_fermi_level(
     temperature_unit: str = "K",
 ) -> float:
     """
-    EF = (kT/q) * ln(Nc / Nd)
+    Calculate Vp for the semiconductor.
+
+    P-Type:
+        Vp = (kT/q) * ln(Nv / Na)
+
+    N-Type:
+        Vp = (kT/q) * ln(Nc / Nd)
+
+    Parameters
+    ----------
+    doping_cm3
+        Semiconductor doping concentration in cm^-3.
+
+        P-Type:
+            doping_cm3 = Na
+
+        N-Type:
+            doping_cm3 = Nd
+
+    temperature_k
+        Temperature in Kelvin.
+
+    substrate_type
+        "P-Type" or "N-Type".
+
+    nc_cm3
+        Effective density of states in the conduction band,
+        in cm^-3.
+
+    nv_cm3
+        Effective density of states in the valence band,
+        in cm^-3.
+
+    Returns
+    -------
+    float
+        Vp in volts.
     """
 
-    validate_unit(doping_unit, "cm^-3", "Doping")
-    validate_unit(temperature_unit, "K", "Temperature")
-    validate_substrate_type(substrate_type)
+    validate_unit(
+        doping_unit,
+        "cm^-3",
+        "Doping",
+    )
+
+    validate_unit(
+        temperature_unit,
+        "K",
+        "Temperature",
+    )
+
+    substrate_type = validate_substrate_type(
+        substrate_type,
+    )
 
     doping = validate_finite_positive(
         doping_cm3,
@@ -70,23 +129,31 @@ def calculate_fermi_level(
     )
 
     if substrate_type == "N-Type":
-        ef = thermal_voltage * np.log(
-            nc / doping
-        )
-
-    elif substrate_type == "P-Type":
-        ef = thermal_voltage * np.log(
-            nv / doping
-        )
+        # N-Type:
+        # Vp = (kT/q) * ln(Nc / Nd)
+        logarithm_argument = nc / doping
 
     else:
+        # P-Type:
+        # Vp = (kT/q) * ln(Nv / Na)
+        logarithm_argument = nv / doping
+
+    if (
+        logarithm_argument <= 0.0
+        or not np.isfinite(logarithm_argument)
+    ):
         raise ValueError(
-            "Unsupported substrate type."
+            "Vp logarithm argument must be finite "
+            "and greater than zero."
         )
 
-    if not np.isfinite(ef):
+    vp = thermal_voltage * np.log(
+        logarithm_argument
+    )
+
+    if not np.isfinite(vp):
         raise ValueError(
-            "Calculated Fermi level is non-finite."
+            "Calculated Vp is non-finite."
         )
 
-    return float(ef)
+    return float(vp)

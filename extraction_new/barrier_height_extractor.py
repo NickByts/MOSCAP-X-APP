@@ -12,11 +12,31 @@ except ImportError:
 
 def calculate_barrier_height(
     vd_v: float,
-    ef_v: float,
+    vp_v: float,
     delta_phi_b_v: float,
 ) -> float:
     """
-    φb = Vd + EF − Δφb
+    Calculate the barrier height.
+
+    Formula
+    -------
+    phi_b = Vd + Vp - Delta_phi_b
+
+    Parameters
+    ----------
+    vd_v
+        Diffusion potential in volts.
+
+    vp_v
+        Vp in volts.
+
+    delta_phi_b_v
+        Image-force barrier lowering in volts/eV.
+
+    Returns
+    -------
+    float
+        Barrier height.
     """
 
     vd = validate_finite(
@@ -24,9 +44,9 @@ def calculate_barrier_height(
         "Diffusion potential",
     )
 
-    ef = validate_finite(
-        ef_v,
-        "Fermi level",
+    vp = validate_finite(
+        vp_v,
+        "Vp",
     )
 
     delta_phi_b = validate_finite(
@@ -36,7 +56,7 @@ def calculate_barrier_height(
 
     barrier_height = (
         vd
-        + ef
+        + vp
         - delta_phi_b
     )
 

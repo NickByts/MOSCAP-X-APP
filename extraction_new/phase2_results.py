@@ -10,38 +10,28 @@ class Phase2Results:
     """Complete Phase 2 result using consistent CGS and areal units."""
 
     cox_f: float
-
     vfb_v: float
-
     vd_v: float
 
-    phi_f_v: float
+    vp_v: float
 
     ld_cm: float
-
     wd_cm: float
-
     em_v_cm: float
-
     delta_phi_b_v: float
 
-    ef_v: float
-
     cs_f: float
-
     phi_b_v: float
-
     cfb_f: float
-
     phi_ms_v: float
 
     qeff_c_cm2: float
-
     neff_cm2: float
 
     @property
-    def phi_f(self) -> float:
-        return self.phi_f_v
+    def vp(self) -> float:
+        """Return Vp in volts."""
+        return self.vp_v
 
     @property
     def ld(self) -> float:
@@ -54,14 +44,10 @@ class Phase2Results:
     @property
     def em(self) -> float:
         return self.em_v_cm
-    
+
     @property
     def delta_phi_b(self) -> float:
         return self.delta_phi_b_v
-
-    @property
-    def ef(self) -> float:
-        return self.ef_v
 
     @property
     def cs(self) -> float:
@@ -86,16 +72,15 @@ class Phase2Results:
     @property
     def phi_b(self) -> float:
         return self.phi_b_v
-    
+
     @property
     def cox(self) -> float:
         return self.cox_f
 
-
     @property
     def vfb(self) -> float:
         return self.vfb_v
-    
+
     @property
     def vd(self) -> float:
         return self.vd_v
